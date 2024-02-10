@@ -1,4 +1,4 @@
-import {importPKCS8, jwtVerify, KeyLike, SignJWT} from "jose";
+import {importPKCS8, jwtVerify, JWTVerifyResult, KeyLike, SignJWT} from "jose";
 import {secret} from "@/app/api/auth";
 import {nanoid} from "nanoid";
 
@@ -29,7 +29,11 @@ export const createToken = async (data: CreatTokenPayload, expiration: Date) => 
     .sign(privateKey)
 }
 
-export const checkToken = async (sessionTokenString: string) => {
-  const privateKey = await getPrivateKey()
-  return await jwtVerify(sessionTokenString, privateKey)
+export const decodeToken = async <T>(sessionTokenString: string): Promise<JWTVerifyResult<T> | false> => {
+  try {
+    const privateKey = await getPrivateKey()
+    return await jwtVerify<T>(sessionTokenString, privateKey)
+  } catch (e) {
+    return false
+  }
 }

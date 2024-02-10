@@ -1,13 +1,12 @@
 import 'server-only'
-import axios from "axios";
 import {ISessions} from "@/databases/mongoose/schema/sessions";
 import {generateSHA256} from "@/app/api/auth/src/functions/generateSHA256";
 import {providers} from "@/app/api/auth";
 import {NextRequest} from "next/server";
-import {sendErrorRedirect, sendJson} from "@/app/api";
-import {cookies} from "next/headers";
-import {createToken} from "@/app/api/auth/src/jwt";
+import {sendErrorRedirect} from "@/app/api";
+import {createToken, decodeToken} from "@/app/api/auth/src/jwt";
 import nodemailer, {Transporter} from "nodemailer"
+import {nanoid} from "nanoid";
 
 interface Config {
   host: string,
@@ -17,9 +16,16 @@ interface Config {
   secure: boolean
 }
 
+interface SmtpProviderToken {
+  provider: "smtp",
+  email: string,
+  password: string,
+  sub: string
+}
 
-export class SmptProvider {
-  private static instance: SmptProvider | null = null;
+
+export class SmtpProvider {
+  private static instance: SmtpProvider | null = null;
   name: "smtp" = 'smtp'
   public credential: Config;
   private transporter: Transporter;
@@ -31,17 +37,18 @@ export class SmptProvider {
     this.transporter = nodemailer.createTransport({
       host: credential.host,
       port: credential.port,
-      secure: credential.secure, // upgrade later with STARTTLS
+      //secure: credential.secure, // upgrade later with STARTTLS
       auth: {
         user: credential.username,
         pass: credential.password
       }
     });
+
   }
 
-  public static getInstance(config: Config): SmptProvider {
+  public static getInstance(config: Config): SmtpProvider {
     if (!this.instance) {
-      this.instance = new SmptProvider(config);
+      this.instance = new SmtpProvider(config);
     }
     return this.instance
   }
@@ -60,6 +67,17 @@ export class SmptProvider {
   public async handleCallback(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get("code");
+
+    if (!code) return sendErrorRedirect(400, "no code provided, please try again")
+
+    const sessionTokenString = await providers[this.name].cache.getValue(code)
+    if (!sessionTokenString) return sendErrorRedirect(404, "your sign in code has expired, please try again")
+
+    const sessionToken = await decodeToken<SmtpProviderToken>(sessionTokenString)
+    if (!sessionToken) return sendErrorRedirect(404, "your sign in code has expired, please try again")
+
+    console.log(sessionToken.payload.password)
+    // cool token is verified now save it to the mongodb
 
 
 
@@ -86,13 +104,20 @@ export class SmptProvider {
     const email = request.headers.get('email')
     const password = request.headers.get('password')
 
-    if (!email || !password) return sendErrorRedirect(400, 'Please provide a username and password')
+    if (!email || !password) return sendErrorRedirect(400, 'Please provide a email and password')
 
-    const [mailVerificationToken, passwordVerificationToken] = await Promise.all([
-      createToken({provider: "smtp", email: email, sub: email}, new Date(new Date().getTime() + 900000)),
-      createToken({provider: "smtp", email: email, password: password, sub: email}, new Date(new Date().getTime() + 900000))
+    const [code, passwordVerificationToken] = await Promise.all([
+      nanoid(),
+      createToken({
+        provider: "smtp",
+        email: email,
+        password: password,
+        sub: email
+      }, new Date(new Date().getTime() + 900000))
     ])
-    await providers[this.name].cache.setValue(mailVerificationToken, passwordVerificationToken, {
+
+    // Save the value to the providers cache and expire in 15min
+    await providers[this.name].cache.setValue(code, passwordVerificationToken, {
       expire: 900000
     })
 
@@ -100,7 +125,7 @@ export class SmptProvider {
       from: 'Chance <no-reply@chancecant.design>',
       to: email,
       subject: "Verification Email",
-      text: `${process.env.NEXTAUTH_URL}/api/auth/callback/smtp?token=${mailVerificationToken}`
+      text: `${process.env.NEXTAUTH_URL}/api/auth/callback/smtp?code=${code}`
     })
 
     //Check if sign in, and if so please just return it as a token in cookies
@@ -113,9 +138,6 @@ export class SmptProvider {
   public async handleSignOut(request: NextRequest) {
     return
   }
-
-
-
 
 
   public saveData(user: any, tokenData: any) {
