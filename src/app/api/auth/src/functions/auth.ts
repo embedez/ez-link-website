@@ -31,7 +31,7 @@ export async function sessionsInternal(): Promise<false | Session> {
       if (cachedAccountString) cacheAccount = JSON.parse(cachedAccountString)
     }*/
 
-    return currentProvider.database.getSession(sessionTokenString)
+    return currentProvider.provider.handleAuthCheck(sessionTokenString)
   } catch (e) {
     console.log(e)
     return false

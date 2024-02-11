@@ -20,6 +20,7 @@ export const providers = {
   smtp: {
     database: MongooseAuth.getInstance({mongodb_url: process.env.MONGODB_URL!}),
     provider: SmtpProvider.getInstance({
+      tokenLifetime: 60 * 60 * 1000, // The max is 1 week
       host: process.env.SMTP_HOST!,
       port: Number(process.env.SMTP_PORT!),
       password: process.env.SMTP_PASSWORD!,

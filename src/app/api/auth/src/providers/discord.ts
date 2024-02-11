@@ -1,15 +1,14 @@
 import 'server-only'
 import axios from "axios";
 import {ISessions} from "@/databases/mongoose/schema/sessions";
-import {generateSHA256} from "@/app/api/auth/src/functions/generateSHA256";
-import {providers, secret} from "@/app/api/auth";
+import {providers} from "@/app/api/auth";
 import {sendErrorRedirect, sendJson} from "@/app/api";
-import jwt from 'jsonwebtoken';
 import {cookies} from "next/headers";
 import {NextRequest} from "next/server";
-import {importPKCS8, SignJWT} from "jose";
-import {nanoid} from "nanoid";
-import {createToken} from "@/app/api/auth/src/jwt";
+import {createToken, decodeToken} from "@/app/api/auth/src/jwt";
+import {Session} from "@/app/api/auth/src/functions/auth";
+import {IAccounts} from "@/databases/mongoose/schema/accounts";
+import {IUsers} from "@/databases/mongoose/schema/users";
 
 
 interface Config {
@@ -71,12 +70,12 @@ export class DiscordProvider {
     if (!user.verified)
       return sendErrorRedirect(404, "please use a verified discord account");
 
-    const [savedAccount, savedUser, savedSession, cacheValue] = await this.saveData(user, tokenData);
+    const [savedAccount, savedUser, savedSession] = await this.saveData(user, tokenData);
 
     const cookie = cookies();
     cookie.set({
       name: "SessionToken",
-      value: savedSession.cookieId,
+      value: savedSession.sessionToken,
     });
 
     const referrer = new URL(
@@ -105,6 +104,35 @@ export class DiscordProvider {
 
   public async handleSignOut(request: NextRequest) {
     return
+  }
+
+  public async handleAuthCheck(token: string) {
+    const discordProvider = providers[this.name]
+    const session = await discordProvider.database.findSession({sessionToken: token});
+    if (!session) return false;
+
+    const account = await discordProvider.database.findAccount({accountId:session.accountId})
+    if (!account || !account.expiresAt) return false;
+
+    if (new Date() > new Date(account.expiresAt)) {
+      // Need to implement token refresh, for now just error it out
+      /*
+        const refreshed = await refreshSession({
+          provider: "discord",
+          cookieId: SessionToken.value,
+          account: account,
+        });
+        if (!refreshed) return false;
+      */
+      return false;
+    }
+
+    const user = await discordProvider.database.findUser({accountId: account.accountId})
+
+    const jwtResult = await decodeToken(token)
+    if (!user || !jwtResult || jwtResult.payload.email !== user.email) return false;
+
+    return { user: user } as Session;
   }
 
 
@@ -152,28 +180,30 @@ export class DiscordProvider {
       provider: "discord",
       accessToken: tokenData.access_token,
       refreshToken: tokenData.refresh_token,
-      expiresAt: new Date(new Date().getTime() + tokenData.expires_in * 1000),
+      expiresAt: new Date(Date.now() + tokenData.expires_in * 1000),
       tokenType: tokenData.token_type,
       scope: tokenData.scope || "",
     };
 
-    const userSchema = {
+    const userSchema: IUsers = {
       accountId: user.id,
       email: user.email,
       name: user.username,
       image: `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`,
       emailVerified: user.verified,
+      provider: this.name
     };
 
-    const cookieId = await createToken({
+    const sessionToken = await createToken({
       sub: user.email,
       provider: "discord",
       email: user.email,
       accountId: user.id,
-    }, new Date(new Date().getTime() + tokenData.expires_in * 1000))
+    }, accountSchema.expiresAt)
 
     const sessionSchema: ISessions = {
-      cookieId: cookieId,
+      sessionToken: sessionToken,
+      expiresAt: accountSchema.expiresAt,
       accountId: user.id,
       provider: 'discord'
     };
@@ -187,10 +217,10 @@ export class DiscordProvider {
     if (oauth.cache) {
       createPromises.push(
         oauth.cache.setValue(
-          sessionSchema.cookieId,
+          sessionSchema.sessionToken,
           JSON.stringify(accountSchema), {
             expire: Math.floor(
-              (new Date(accountSchema.expiresAt).getTime() - new Date().getTime()) /
+              (new Date(accountSchema.expiresAt).getTime() - Date.now()) /
               1000,
             ),
           })

@@ -5,17 +5,17 @@ export interface IAccounts {
   provider: string;
   accessToken: string;
   refreshToken: string;
-  expiresAt: Date;
-  tokenType: string;
+  expiresAt?: Date | undefined;
+  tokenType?: string;
   scope: string;
 }
 
 export const AccountsSchema = new Schema<IAccounts>({
-  provider: { type: String, required: true },
   accountId: { type: String, required: true },
-  tokenType: { type: String, required: true },
+  provider: { type: String, required: true },
   accessToken: { type: String, required: true },
-  expiresAt: { type: Date, required: true },
   refreshToken: { type: String, required: true },
+  expiresAt: { type: Date, required: false },
+  tokenType: { type: String, required: false },
   scope: { type: String, required: true },
 });

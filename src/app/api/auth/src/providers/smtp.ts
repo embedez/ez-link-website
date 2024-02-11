@@ -1,14 +1,19 @@
 import 'server-only'
 import {ISessions} from "@/databases/mongoose/schema/sessions";
-import {generateSHA256} from "@/app/api/auth/src/functions/generateSHA256";
 import {providers} from "@/app/api/auth";
 import {NextRequest} from "next/server";
-import {sendErrorRedirect} from "@/app/api";
+import {sendError, sendErrorRedirect} from "@/app/api";
 import {createToken, decodeToken} from "@/app/api/auth/src/jwt";
 import nodemailer, {Transporter} from "nodemailer"
 import {nanoid} from "nanoid";
+import {cookies} from "next/headers";
+import {IAccounts} from "@/databases/mongoose/schema/accounts";
+import {IUsers} from "@/databases/mongoose/schema/users";
+import {createHash, validateHash} from "@/app/api/auth/src/hash";
+import {Session} from "@/app/api/auth/src/functions/auth";
 
 interface Config {
+  tokenLifetime: number,
   host: string,
   port?: number,
   username?: string,
@@ -32,7 +37,9 @@ export class SmtpProvider {
 
   private constructor(credential: Config) {
     // Initialize credential during the construction
-    this.credential = credential;
+    this.credential = credential
+
+    console.log(credential.secure)
 
     this.transporter = nodemailer.createTransport({
       host: credential.host,
@@ -65,6 +72,10 @@ export class SmtpProvider {
    * @return {Response} - The redirect response.
    */
   public async handleCallback(request: NextRequest) {
+    /*
+    * This is going to be the callback for when the link is clicked from the mail inbox of the person its sent from
+    * */
+
     const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get("code");
 
@@ -76,19 +87,18 @@ export class SmtpProvider {
     const sessionToken = await decodeToken<SmtpProviderToken>(sessionTokenString)
     if (!sessionToken) return sendErrorRedirect(404, "your sign in code has expired, please try again")
 
-    console.log(sessionToken.payload.password)
-    // cool token is verified now save it to the mongodb
+    const payload = sessionToken.payload
+    const [savedAccount, savedUser, savedSession, cacheValue] = await this.saveData(payload);
 
+    console.log(savedSession)
 
+    const cookie = cookies();
+    const referrer = new URL(
+      cookie.get("redirectUrl")?.value || "/",
+      process.env.NEXTAUTH_URL,
+    );
+    cookie.delete("redirectUrl");
 
-
-    /*
-    * This is going to be the callback for when the link is clicked from the mail inbox of the person its sent from
-    * */
-
-
-    // redirect to check inbox screen
-    const referrer = new URL(`/api/auth/message?message=${'Please check your inbox for a verification email'}`, process.env.NEXTAUTH_URL,);
     return Response.redirect(referrer, 302);
   }
 
@@ -100,24 +110,42 @@ export class SmtpProvider {
    * @returns {Promise<Object>} - The JSON response containing the OAuth URL.
    */
   public async handleSignIn(request: NextRequest, referer?: string) {
-
+    const activeProvider = providers[this.name]
     const email = request.headers.get('email')
     const password = request.headers.get('password')
 
     if (!email || !password) return sendErrorRedirect(400, 'Please provide a email and password')
 
-    const [code, passwordVerificationToken] = await Promise.all([
-      nanoid(),
-      createToken({
-        provider: "smtp",
-        email: email,
-        password: password,
-        sub: email
-      }, new Date(new Date().getTime() + 900000))
+    const [account, user] = await Promise.all([
+      activeProvider.database.findAccount({
+        accountId: email,
+        provider: this.name
+      }),
+      activeProvider.database.findUser({
+        accountId: email,
+        provider: this.name
+      })
     ])
 
+    if (account && user) {
+      const isPasswordCorrect = await validateHash(password, account.accessToken)
+      if (!isPasswordCorrect) return sendError(401, "wrong password")
+
+      const [sessionSchema] = await this.updateSession(account, user)
+      if (sessionSchema) return sendError(200, "successfully sign in")
+      else return sendErrorRedirect(500, "could not sign in, please try again")
+    }
+
+    const code = nanoid()
+    const passwordVerificationToken = await createToken({
+      provider: "smtp",
+      email: email,
+      password: password,
+      sub: email
+    }, new Date(Date.now() + 900000))
+
     // Save the value to the providers cache and expire in 15min
-    await providers[this.name].cache.setValue(code, passwordVerificationToken, {
+    await activeProvider.cache.setValue(code, passwordVerificationToken, {
       expire: 900000
     })
 
@@ -139,53 +167,96 @@ export class SmtpProvider {
     return
   }
 
+  public async handleAuthCheck(token: string) {
+    const selectedProvider = providers[this.name]
+    const session = await selectedProvider.database.findSession({sessionToken: token});
+    if (!session) return false;
 
-  public saveData(user: any, tokenData: any) {
-    const oauth = providers[this.name]
-    const accountSchema = {
-      accountId: user.id,
-      provider: "discord",
-      accessToken: tokenData.access_token,
-      refreshToken: tokenData.refresh_token,
-      expiresAt: new Date(new Date().getTime() + tokenData.expires_in * 1000),
-      tokenType: tokenData.token_type,
-      scope: tokenData.scope || "",
-    };
+    const account = await selectedProvider.database.findAccount({
+      accountId: session.accountId,
+      provider: this.name
+    })
+    if (!account) return false;
 
-    const userSchema = {
-      accountId: user.id,
+    const user = await selectedProvider.database.findUser({accountId: account.accountId})
+    const jwtResult = await decodeToken(token)
+
+    if (!user || !jwtResult || jwtResult.payload.email !== user.email || (!jwtResult.payload.exp || new Date() > new Date(jwtResult.payload.exp * 1000))) return false;
+
+    return {user: user} as Session;
+  }
+
+
+  private async updateSession(accountSchema: IAccounts, user: IUsers) {
+    const smtpProvider = providers[this.name]
+    const expirationDate = new Date(Date.now() + this.credential.tokenLifetime)
+    const sessionToken: string = await createToken({
+      provider: "smtp",
+      sub: user.email,
       email: user.email,
-      name: user.username,
-      image: `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`,
-      emailVerified: user.verified,
-    };
-
-    console.log(userSchema)
+      accountId: user.email,
+    }, expirationDate)
 
     const sessionSchema: ISessions = {
-      cookieId: `${generateSHA256()}.discord`,
-      accountId: user.id,
-      provider: 'discord'
+      sessionToken: sessionToken,
+      accountId: user.email,
+      expiresAt: new Date(Date.now() + this.credential.tokenLifetime),
+      provider: 'smtp'
     };
 
     const createPromises: any = [
-      oauth.database.createAccount(accountSchema),
-      oauth.database.createUser(userSchema),
-      oauth.database.createSession(sessionSchema)
+      smtpProvider.database.createSession(sessionSchema)
     ];
 
-    if (oauth.cache) {
+    if (smtpProvider.cache) {
       createPromises.push(
-        oauth.cache.setValue(
-          sessionSchema.cookieId,
+        smtpProvider.cache.setValue(
+          sessionSchema.sessionToken,
           JSON.stringify(accountSchema), {
             expire: Math.floor(
-              (new Date(accountSchema.expiresAt).getTime() - new Date().getTime()) /
+              (new Date(expirationDate).getTime() - Date.now()) /
               1000,
             ),
           })
       );
     }
+
+    const cookie = cookies();
+    cookie.set({
+      name: "SessionToken",
+      value: sessionSchema.sessionToken,
+    });
+
+    return Promise.all(createPromises);
+  }
+
+  private async saveData(payload: SmtpProviderToken) {
+    const smtpProvider = providers[this.name]
+
+    const userSchema: IUsers = {
+      accountId: payload.email,
+      email: payload.email,
+      name: payload.email.split('@')[0],
+      image: `/icons/unknown-user.png`,
+      emailVerified: true,
+      provider: this.name
+    };
+
+    const accessToken = await createHash(payload.password)
+    const accountSchema: IAccounts = {
+      accountId: payload.email,
+      provider: "smtp",
+      accessToken: accessToken,
+      refreshToken: "",
+      expiresAt: undefined,
+      scope: "email password",
+    };
+
+    const createPromises: any = [
+      smtpProvider.database.createAccount(accountSchema),
+      smtpProvider.database.createUser(userSchema),
+      ...await this.updateSession(accountSchema, userSchema)
+    ];
 
     return Promise.all(createPromises);
   }
