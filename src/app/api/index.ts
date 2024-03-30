@@ -1,9 +1,8 @@
 /*
-* For all Api routes responses use custom handler for data normalization
-*
-* Consistency is key - Random Person
-* */
-
+ * For all Api routes responses use custom handler for data normalization
+ *
+ * Consistency is key - Random Person
+ * */
 
 /**
  * Sends an error response with the given status and message.
@@ -13,16 +12,19 @@
  * @returns {object} - The error response object.
  */
 export const sendError = (status: number, message: string) => {
-  return Response.json({
-    success: false,
-    message: message,
-  }, {
-    status: status,
-    statusText: message,
-  })
+  return Response.json(
+    {
+      success: false,
+      status: status,
+      message: message,
+    },
+    {
+      status: status,
+      statusText: message,
+    },
+  );
 };
-export type ErrorResult = { success: false, message: string }
-
+export type ErrorResult = { success: false; message: string; status?: number };
 
 /**
  * Creates a JSON response object with optional status code.
@@ -32,17 +34,18 @@ export type ErrorResult = { success: false, message: string }
  * @returns {object} - The JSON response object.
  */
 export const sendJson = (data: any, code?: number) => {
-  return Response.json({
+  return Response.json(
+    {
       success: true,
       data: data,
-    }, {
+    },
+    {
       status: code,
-    }
+    },
   );
 };
 
-export type JsonResult<T> = { success: true, data: T }
-
+export type JsonResult<T> = { success: true; data: T };
 
 /**
  * Redirects to the error page with the provided status and message.
@@ -50,11 +53,11 @@ export type JsonResult<T> = { success: true, data: T }
  * @param {number} status - The HTTP status code of the error.
  * @param {string} message - The error message.
  */
-export const sendErrorRedirect = (
-  status: number,
-  message: string,
-) => {
-  return Response.redirect(`${process.env.NEXTAUTH_URL}/api/auth/error?message=${message}&code=${status}`, 302,);
+export const sendErrorRedirect = (status: number, message: string) => {
+  return Response.redirect(
+    `${process.env.NEXTAUTH_URL}/api/auth/error?message=${message}&code=${status}`,
+    302,
+  );
 };
 
-export type ApiResult<T> = JsonResult<T> | ErrorResult
+export type ApiResult<T> = JsonResult<T> | ErrorResult;
