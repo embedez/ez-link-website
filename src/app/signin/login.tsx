@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
-  Dia,
+  Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -166,14 +166,14 @@ export function SignInMenu({ redirectUrl }: { redirectUrl?: string }) {
                 </FormItem>
               )}
             />
-            <Dia>
+            <Dialog>
               <DialogTrigger className={"text-end"}>
                 <small className="text-sm font-medium leading-none">
                   Forgot Password
                 </small>
               </DialogTrigger>
               <ForgotPassword redirectUrl={redirectUrl} />
-            </Dia>
+            </Dialog>
             <Button type="submit" className={"w-full"}>
               Submit
             </Button>

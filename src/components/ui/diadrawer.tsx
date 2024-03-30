@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useMediaQuery } from "react-responsive";
 import {
-  Dia,
+  Dialog,
   DialogClose,
   DialogContent,
   DialogDescription,
@@ -28,14 +28,14 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 
-type DiaDrawerProps = React.ComponentProps<typeof Dia> &
+type DiaDrawerProps = React.ComponentProps<typeof Dialog> &
   React.ComponentProps<typeof Drawer>;
 
 const DiaDrawer: React.FC<DiaDrawerProps> = ({ children, ...props }) => {
   const isDesktop = useMediaQuery({ query: "(min-width: 768px)" });
 
   return isDesktop ? (
-    <Dia {...props}>{children}</Dia>
+    <Dialog {...props}>{children}</Dialog>
   ) : (
     <Drawer {...props}>{children}</Drawer>
   );
