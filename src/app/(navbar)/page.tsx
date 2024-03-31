@@ -68,9 +68,7 @@ export default async function Home() {
           <CardHeader>
             <CardTitle>Welcome to my site!</CardTitle>
             <CardDescription>
-              Site is an awesome starer to any nextjs project. With this project
-              comes provided a auth management, state management, and shadcn
-              included!
+              Site serves as a fantastic starter for all Next.js projects. This project includes built-in authentication management, state management, and shadcn!
             </CardDescription>
           </CardHeader>
           <CardContent></CardContent>
