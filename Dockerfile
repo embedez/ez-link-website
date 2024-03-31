@@ -1,9 +1,6 @@
 # Define the base image
 FROM node:18-alpine
 
-ARG mongodb_url
-ENV MONGODB_URL=$mongodb_url
-
 # Install FFmpeg and FFprobe
 # RUN apk --no-cache add ffmpeg
 # Set the working directory in the container
