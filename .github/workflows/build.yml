@@ -39,7 +39,9 @@ jobs:
       - name: Get the version
         id: get_version
         run: |
-          echo ::set-output name=VERSION::$(git rev-parse --short HEAD)
+          VERSION=$(git rev-parse --short HEAD)
+          echo "Version: $VERSION"
+          echo ::set-output name=VERSION::$VERSION
       - name: Checkout Repo
         uses: actions/checkout@v2
       - name: Fetch Artifacts
