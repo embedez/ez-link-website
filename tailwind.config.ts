@@ -1,4 +1,5 @@
-import type { Config } from "tailwindcss";
+import type {Config} from "tailwindcss";
+import plugin from "tailwindcss/plugin";
 
 const config = {
   darkMode: ["class"],
@@ -60,12 +61,12 @@ const config = {
       },
       keyframes: {
         "accordion-down": {
-          from: { height: "0" },
-          to: { height: "var(--radix-accordion-content-height)" },
+          from: {height: "0"},
+          to: {height: "var(--radix-accordion-content-height)"},
         },
         "accordion-up": {
-          from: { height: "var(--radix-accordion-content-height)" },
-          to: { height: "0" },
+          from: {height: "var(--radix-accordion-content-height)"},
+          to: {height: "0"},
         },
         shimmer: {
           from: {
@@ -83,7 +84,27 @@ const config = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate"), addVariablesForColors],
+  plugins: [require("tailwindcss-animate"), addVariablesForColors, plugin(({addBase, theme}) => {
+    const data = theme("colors");
+    addBase({
+      "*::-webkit-scrollbar": {
+        width: "10px",
+        height: "10px",
+      },
+      "*::-webkit-scrollbar-track": {
+        background: data?.background || "#000",
+      },
+      "*::-webkit-scrollbar-thumb": {
+        backgroundColor: data?.accent.DEFAULT || "#fff",
+        borderRadius: "20px",
+        borderWidth: "4px",
+        borderColor: data?.accent.DEFAULT || "#000",
+      },
+      "*::-webkit-scrollbar-corner": {
+        background: data?.background || "#fff",
+      },
+    });
+  }),],
 } satisfies Config;
 
 function flattenColorPalette(colors: { [key: string]: any }): {
@@ -94,14 +115,14 @@ function flattenColorPalette(colors: { [key: string]: any }): {
     ...Object.entries(colors || {}).flatMap(([color, values]) =>
       typeof values == "object"
         ? Object.entries(flattenColorPalette(values)).map(([number, hex]) => ({
-            [color + (number === "DEFAULT" ? "" : `-${number}`)]: hex,
-          }))
-        : [{ [`${color}`]: values }],
+          [color + (number === "DEFAULT" ? "" : `-${number}`)]: hex,
+        }))
+        : [{[`${color}`]: values}],
     ),
   );
 }
 
-function addVariablesForColors({ addBase, theme }: any) {
+function addVariablesForColors({addBase, theme}: any) {
   let allColors = flattenColorPalette(theme("colors"));
   let newVars = Object.fromEntries(
     Object.entries(allColors).map(([key, val]) => [`--${key}`, val]),
