@@ -20,9 +20,9 @@ export class MongooseAuth implements Database {
 
   private constructor(config: Config) {
     mongoose
-      .connect(config.mongodb_url)
+      .connect(config.mongodb_url || process.env.MONGODB_URL || "")
       .then(() => console.log("Connected to Mongoose"))
-      .catch((e) => console.log("Could not connect to mongoose", config.mongodb_url, e));
+      .catch((e) => console.log("Could not connect to mongoose", config, process, e));
   }
 
   public static getInstance(config: Config): MongooseAuth {
