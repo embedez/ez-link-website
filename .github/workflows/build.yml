@@ -1,3 +1,5 @@
+name: "Build an push to github container register"
+
 on:
   push:
     branches: [ "master", "main" ]
@@ -5,6 +7,7 @@ on:
 
 permissions:
   packages: write
+  contents: read
 
 jobs:
   build:
