@@ -66,7 +66,7 @@
     "recoil": "^0.7.7",
     "server-only": "^0.0.1",
     "sonner": "^1.4.41",
-    "suna-auth": "^1.0.10",
+    "suna-auth": "^1.0.11",
     "suna-auth-discord": "^1.0.2",
     "suna-auth-mongoose": "^1.0.2",
     "suna-auth-redis": "^1.0.2",

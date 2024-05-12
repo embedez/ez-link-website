@@ -1,18 +1,35 @@
 "use server";
 
-import { CustomSession } from "@/auth";
+import { auth } from "@/auth";
 import { JsonResult, ErrorResult, sendErrorAction, sendJsonAction } from "../..";
 import Link, { LinkType } from "@/databases/mongoose/schema/link";
-import { modelJson } from "@/databases/mongoose/utils/modelJson";
+import { modelJson, modelJsons } from "@/databases/mongoose/utils/modelJson";
 import { PostLinkDataZod, postLinkDataZod } from "./client";
+import { RedisClient } from "suna-auth-redis";
+import { RateLimiter } from "@/databases/ratelimiter";
 
 const errors = {
-  "already_exists": "short code already exits please choose a different short code"
+  "already_exists": "short code already exits please choose a different short code",
+  "invalid_session": "please be logged in",
+  "link_no_exist": "this link does not exist and could not be found",
+  "links_no_exist": "could not find links",
+  "rate_limit": "you are being rate limited"
 }
 
-export const PostLink = async (user: CustomSession, data: PostLinkDataZod): Promise<ErrorResult | JsonResult<LinkType>> => {
-  const parsedData = await postLinkDataZod.safeParseAsync(data)
+const Redis = RedisClient.getInstance({ redis_url: process.env.REDIS_URL! })
 
+const rateLimiter = new RateLimiter({
+  limit: 10, // Example: 5 requests per windowMs
+  windowMs: 60000, // Example: 1 minute window
+  cache: Redis
+});
+
+
+export const PostLink = async (data: PostLinkDataZod): Promise<ErrorResult | JsonResult<LinkType>> => {
+  const session = await auth()
+  if (!session) return sendErrorAction(401, errors.invalid_session)
+
+  const parsedData = await postLinkDataZod.safeParseAsync(data)
   if (!parsedData.success) return sendErrorAction(400, parsedData.error.errors.map(e => e.message).join("\n"))
 
   const linkData = parsedData.data
@@ -25,13 +42,16 @@ export const PostLink = async (user: CustomSession, data: PostLinkDataZod): Prom
     if (shortCodeDocument) return sendErrorAction(409, errors.already_exists)
   }
 
+  const allowed = await rateLimiter.consume(`${session.user.accountId}-link-creation`);
+  if (!allowed) return sendErrorAction(429, errors.rate_limit);
+
   try {
     const createdLink = await Link.create({
       originalUrl: linkData.originalUrl,
       shortCode: linkData.shortCode,
-      userId: user.user.accountId
+      userId: session.user.accountId
     })
-    
+
     return sendJsonAction(modelJson(createdLink))
   } catch (e: any) {
     if ("message" in e) {
@@ -43,10 +63,13 @@ export const PostLink = async (user: CustomSession, data: PostLinkDataZod): Prom
 }
 
 export const GetLink = async (data: Partial<LinkType>): Promise<ErrorResult | JsonResult<LinkType>> => {
+  const session = await auth()
+  if (!session) return sendErrorAction(401, errors.invalid_session)
+
   try {
     const existingLink = await Link.findOne(data)
-    if (!existingLink) return sendErrorAction(400, "This link does not exist and could not be found")
-    
+    if (!existingLink) return sendErrorAction(400, errors.link_no_exist)
+
     return sendJsonAction(modelJson(existingLink))
   } catch (e: any) {
     if ("message" in e) {
@@ -56,3 +79,23 @@ export const GetLink = async (data: Partial<LinkType>): Promise<ErrorResult | Js
     return sendErrorAction(400, JSON.stringify(e))
   }
 }
+
+export const GetLinks = async (data: Partial<LinkType>): Promise<ErrorResult | JsonResult<LinkType[]>> => {
+  const session = await auth()
+  if (!session) return sendErrorAction(401, errors.invalid_session)
+
+  try {
+    const existingLink = await Link.find({ ...data, userId: session.user.accountId }).sort({
+      created: -1
+    })
+    if (!existingLink) return sendErrorAction(400, errors.links_no_exist)
+
+    return sendJsonAction(modelJsons(existingLink))
+  } catch (e: any) {
+    if ("message" in e) {
+      return sendErrorAction(400, e.message)
+    }
+
+    return sendErrorAction(400, JSON.stringify(e))
+  }
+} 

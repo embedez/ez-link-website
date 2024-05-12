@@ -13,9 +13,15 @@ import { CreateShortLink } from "./client";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { SignInMenu } from "../signin/login";
+import { headers } from "next/headers";
+import dynamic from "next/dynamic";
+import { useCallback, useEffect } from "react";
+const DisplayLinks = dynamic(() => import('@/components/common/displayLinks'), { ssr: false });
 
 export default async function Home() {
   const session = await auth();
+  const headersList = headers()
+  const hostname = headersList.get('host');
 
   return (
     <main>
@@ -29,7 +35,7 @@ export default async function Home() {
           <SignInMenu />
         ) : (
           <Card
-            className={"w-full border-0  z-10 backdrop-blur-lg max-w-[700px]"}
+            className={"w-full border-0  z-10 backdrop-blur-lg max-w-[500px]"}
           >
             <CardHeader>
               <CardTitle className="w-full text-center">EzEz Link</CardTitle>
@@ -45,6 +51,11 @@ export default async function Home() {
             </CardFooter>
           </Card>
         )}
+      </div>
+      <div className="flex flex-col gap-2 pb-20 items-center">
+        {
+          session && <DisplayLinks hostname={hostname || ""}/>
+        } 
       </div>
       <BackgroundBeams className={"fixed pointer-events-none"} />
     </main>

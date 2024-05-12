@@ -16,15 +16,29 @@ import {
 import { Label } from "@/components/ui/label";
 import { PostLinkDataZod, postLinkDataZod } from "../api/v1/link/client";
 import { toast } from "sonner";
+import { useRecoilState, useSetRecoilState } from "recoil";
+import { userLinks } from "@/state/atoms";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { headers } from "next/headers";
+import { CopyIcon } from "lucide-react";
 
 export const CreateShortLink = ({ session }: { session: CustomSession }) => {
-  const [error, setError] = useState<ErrorResult>();
-  const [data, setData] = useState<JsonResult>();
   const [loading, setLoading] = useState<boolean>(false);
+  const setLinks = useSetRecoilState(userLinks);
   const [inputData, setInputData] = useState<PostLinkDataZod>({
     originalUrl: "",
-    shortCode: ""
+    shortCode: undefined,
   });
+
+  const addLink = (link: PostLinkDataZod) => {
+    setLinks((oldLinks) => [link, ...oldLinks]);
+  };
 
   const setOriginalUrl = (url: string) => {
     setInputData((old) => ({
@@ -38,8 +52,7 @@ export const CreateShortLink = ({ session }: { session: CustomSession }) => {
       ...old,
       shortCode: shortCode,
     }));
-  }
-
+  };
 
   const validateInputData = useCallback(async (data: any) => {
     const parsedLinkData = await postLinkDataZod.safeParseAsync(data);
@@ -48,18 +61,24 @@ export const CreateShortLink = ({ session }: { session: CustomSession }) => {
       return false;
     }
     return parsedLinkData.data;
-  }, [])
+  }, []);
 
-  const handleOriginalUrlInputChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    const inputValue = event.target.value;
-    setOriginalUrl(inputValue);
-  }, [setOriginalUrl])
+  const handleOriginalUrlInputChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const inputValue = event.target.value;
+      setOriginalUrl(inputValue);
+    },
+    [setOriginalUrl]
+  );
 
-  const handleShortCodeInputChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    const inputValue = event.target.value;
-    if (!inputValue) return setShortCode(undefined)
-    setShortCode(inputValue);
-  }, [setOriginalUrl])
+  const handleShortCodeInputChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const inputValue = event.target.value;
+      if (!inputValue) return setShortCode(undefined);
+      setShortCode(inputValue);
+    },
+    [setOriginalUrl]
+  );
 
   const submitLinkCreation = useCallback(async () => {
     const validData = await validateInputData(inputData);
@@ -68,20 +87,21 @@ export const CreateShortLink = ({ session }: { session: CustomSession }) => {
     if (loading) return;
     setLoading(true);
 
-    const createShortLink = await PostLink(session, validData);
-    setLoading(false)
+    const createShortLink = await PostLink(validData);
+    setLoading(false);
 
     if (!createShortLink.success) {
-      toast.error('Error Creating EzEz Link', {
+      toast.error("Error Creating EzEz Link", {
         description: createShortLink.message,
-        closeButton: true
-      })
+        closeButton: true,
+      });
       return;
     }
 
+    addLink(createShortLink.data);
     toast.success("Successfully EzEz Link Created", {
-      description: `Created a new link ${createShortLink.data.shortCode}`
-    })
+      description: `Created a new link ${createShortLink.data.shortCode}`,
+    });
   }, [inputData, session]);
 
   return (
@@ -116,9 +136,13 @@ export const CreateShortLink = ({ session }: { session: CustomSession }) => {
           </AccordionContent>
         </AccordionItem>
       </Accordion>
-      <Button className="h-auto" disabled={loading} onClick={() => submitLinkCreation()}>
-          Generate Short Link
-        </Button>
+      <Button
+        className="h-auto"
+        disabled={loading}
+        onClick={() => submitLinkCreation()}
+      >
+        Generate Short Link
+      </Button>
     </div>
   );
 };

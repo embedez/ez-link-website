@@ -1,6 +1,7 @@
 "use client";
 import { AtomEffect, atom, selector } from "recoil";
 import { CustomSession } from "@/auth";
+import { PostLinkDataZod } from "@/app/api/v1/link/client";
 
 const localStorageEffect =
   <T>(key: string): AtomEffect<T> =>
@@ -50,3 +51,11 @@ export const userInfo = atom<CustomSession | Partial<CustomSession>>({
     localStorageEffect<CustomSession | Partial<CustomSession>>("userInfo"),
   ],
 });
+
+export const userLinks = atom<PostLinkDataZod[]>({
+  key: "userLinks",
+  default: [],
+  effects_UNSTABLE: [
+    localStorageEffect<PostLinkDataZod[]>("userLinks"),
+  ]
+})

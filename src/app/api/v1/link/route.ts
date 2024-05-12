@@ -7,12 +7,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await auth()
-  if (!session) return sendErrorResponse(401, "please login")
-
   const body = await request.json()
-
-  const result = await PostLink(session, body)
+  const result = await PostLink(body)
 
   if (!result.success) return sendErrorResponse(result.status || 400, result.message)
 

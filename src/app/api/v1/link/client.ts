@@ -3,7 +3,8 @@ import { z } from 'zod';
 export interface PostLinkDataZod {
   originalUrl: string,
   shortCode?: string,
-  metadata?: any
+  metadata?: any,
+  userId?: string
 }
 
 export const postLinkDataZod = z.object({
