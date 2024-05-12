@@ -11,7 +11,7 @@
  * @param {string} message - The error message to be included in the response.
  * @returns {object} - The error response object.
  */
-export const sendError = (status: number, message: string) => {
+export const sendErrorResponse = (status: number, message: string) => {
   return Response.json(
     {
       success: false,
@@ -24,6 +24,13 @@ export const sendError = (status: number, message: string) => {
     },
   );
 };
+export const sendErrorAction = (status: number, message: string): ErrorResult => {
+  return {
+    success: false,
+    status: status,
+    message: message,
+  }
+};
 export type ErrorResult = { success: false; message: string; status?: number };
 
 /**
@@ -33,7 +40,7 @@ export type ErrorResult = { success: false; message: string; status?: number };
  * @param {number} [code] - The optional status code for the response.
  * @returns {object} - The JSON response object.
  */
-export const sendJson = (data: any, code?: number) => {
+export const sendJsonResponse = (data: any, code?: number) => {
   return Response.json(
     {
       success: true,
@@ -45,7 +52,14 @@ export const sendJson = (data: any, code?: number) => {
   );
 };
 
-export type JsonResult<T> = { success: true; data: T };
+export const sendJsonAction = (data: any, code?: number): JsonResult => {
+  return {
+    success: true,
+    data: data,
+  }
+};
+
+export type JsonResult<T = any> = { success: true; data: T };
 
 /**
  * Redirects to the error page with the provided status and message.
@@ -53,7 +67,7 @@ export type JsonResult<T> = { success: true; data: T };
  * @param {number} status - The HTTP status code of the error.
  * @param {string} message - The error message.
  */
-export const sendErrorRedirect = (status: number, message: string) => {
+export const sendErrorRedirectResponse = (status: number, message: string) => {
   return Response.redirect(
     `${process.env.NEXTAUTH_URL}/api/auth/error?message=${message}&code=${status}`,
     302,

@@ -1,7 +1,6 @@
 import { RedisClient } from "suna-auth-redis";
 import { DiscordProvider } from "suna-auth-discord";
 import { MongooseAuth } from "suna-auth-mongoose";
-import { GoogleProvider } from "suna-auth-google";
 import { SmtpProvider } from "suna-auth-smtp";
 import { Auth } from "suna-auth";
 import { AccountType, Session, SessionType, UserType } from "suna-auth/dist/types";
@@ -15,15 +14,6 @@ const initialize = new Auth(
         client_secret: process.env.DISCORD_CLIENT_SECRET!,
         scopes: ["identify", "email", "guilds", "guilds.join"],
         authorization: "https://discord.com/api/oauth2/authorize",
-      }),
-      database: MongooseAuth.getInstance({ mongodb_url: process.env.MONGODB_URL! }),
-    },
-    google: {
-      cache: RedisClient.getInstance({ redis_url: process.env.REDIS_URL! }),
-      provider: GoogleProvider.getInstance({
-        client_id: process.env.GOOGLE_CLIENT_ID!,
-        client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-        scopes: ["https://www.googleapis.com/auth/userinfo.email"],
       }),
       database: MongooseAuth.getInstance({ mongodb_url: process.env.MONGODB_URL! }),
     },

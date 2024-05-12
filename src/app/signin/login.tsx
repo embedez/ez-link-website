@@ -112,15 +112,6 @@ export function SignInMenu({ redirectUrl }: { redirectUrl?: string }) {
           >
             Sign In With Discord
           </Button>
-          <Button
-            onClick={() =>
-              signIn("google", {
-                redirect_url: redirectUrl,
-              })
-            }
-          >
-            Sign In With Google
-          </Button>
         </div>
 
         <div className={"w-full h-1 my-2 flex flex-row items-center gap-2"}>
