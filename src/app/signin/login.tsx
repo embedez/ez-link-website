@@ -29,7 +29,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { signIn } from "@/suna-auth/client";
+import { signIn } from "suna-auth/dist/client";
 import { toast } from "sonner";
 
 export function Login({ redirectUrl }: { redirectUrl?: string }) {

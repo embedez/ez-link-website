@@ -50,6 +50,11 @@ This template utilizes UI components from [Shadcn](https://ui.shadcn.com) with a
    ````bash
    npm install
    ````
+### Getting secrets 
+
+To get the secrets for the auth system run this command `openssl genpkey -algorithm RSA -outform PEM -pkeyopt rsa_keygen_bits:2048 | openssl base64 -A` 
+select the base64 text and supply the env value NEXTAUTH_SECRET
+
 
 ### Running the Application
 

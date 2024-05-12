@@ -1,11 +1,10 @@
-import { RedisClient } from "@/databases/auth/redis";
-import { DiscordProvider } from "@/databases/auth/discord";
-import { MongooseAuth } from "@/databases/auth/mongo";
-import { GoogleProvider } from "@/databases/auth/google";
-import { SmtpProvider } from "@/databases/auth/smtp";
-import { Auth } from "@/suna-auth";
-import { modelJson } from "@/databases/mongoose/utils/modelJson";
-import { AccountType, Session, SessionType, UserType } from "@/suna-auth/types";
+import { RedisClient } from "suna-auth-redis";
+import { DiscordProvider } from "suna-auth-discord";
+import { MongooseAuth } from "suna-auth-mongoose";
+import { GoogleProvider } from "suna-auth-google";
+import { SmtpProvider } from "suna-auth-smtp";
+import { Auth } from "suna-auth";
+import { AccountType, Session, SessionType, UserType } from "suna-auth/dist/types";
 
 const initialize = new Auth(
   {

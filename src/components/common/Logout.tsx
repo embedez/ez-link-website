@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
-import { signOut } from "@/suna-auth/client";
+import { signOut } from "suna-auth/dist/client";
 
 export const Logout = ({ children }: { children: ReactNode }) => {
   return (
