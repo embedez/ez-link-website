@@ -8,14 +8,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { CreateShortLink } from "./client";
 import { auth } from "@/auth";
-import { redirect } from "next/navigation";
 import { SignInMenu } from "../signin/login";
 import { headers } from "next/headers";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect } from "react";
 const DisplayLinks = dynamic(() => import('@/components/common/displayLinks'), { ssr: false });
 
 export default async function Home() {

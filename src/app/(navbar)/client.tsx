@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { ChangeEvent, useCallback, useState } from "react";
 import { boolean } from "zod";
 import { ErrorResult, JsonResult } from "../api";
-import { PostLink } from "../api/v1/link/action";
+import { PUTLink } from "../api/v1/link/action";
 import { CustomSession } from "@/auth";
 import { Collapsible } from "@/components/ui/collapsible";
 import {
@@ -87,7 +87,7 @@ export const CreateShortLink = ({ session }: { session: CustomSession }) => {
     if (loading) return;
     setLoading(true);
 
-    const createShortLink = await PostLink(validData);
+    const createShortLink = await PUTLink(validData);
     setLoading(false);
 
     if (!createShortLink.success) {

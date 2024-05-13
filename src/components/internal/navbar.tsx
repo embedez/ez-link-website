@@ -112,8 +112,16 @@ export const Navbar = async () => {
               <>
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Settings</DropdownMenuItem>
-                <DropdownMenuItem>Support</DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Link className="w-full" href="/dashboard">
+                    Dashboard
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Link className="w-full" href="/dashboard#analytics">
+                    Analytics
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <Logout>
                   <DropdownMenuItem>Logout</DropdownMenuItem>

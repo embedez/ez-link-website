@@ -9,11 +9,12 @@ import { RedisClient } from "suna-auth-redis";
 import { RateLimiter } from "@/databases/ratelimiter";
 
 const errors = {
-  "already_exists": "short code already exits please choose a different short code",
-  "invalid_session": "please be logged in",
-  "link_no_exist": "this link does not exist and could not be found",
-  "links_no_exist": "could not find links",
-  "rate_limit": "you are being rate limited"
+  "already_exists": "The short code already exists. Please choose a different short code.",
+  "invalid_session": "Please be logged in.",
+  "invalid_patch": "Could not patch/update link.",
+  "link_no_exist": "This link does not exist and could not be found.",
+  "links_no_exist": "Could not find any links.",
+  "rate_limit": "You are being rate limited."
 }
 
 const Redis = RedisClient.getInstance({ redis_url: process.env.REDIS_URL! })
@@ -25,7 +26,7 @@ const rateLimiter = new RateLimiter({
 });
 
 
-export const PostLink = async (data: PostLinkDataZod): Promise<ErrorResult | JsonResult<LinkType>> => {
+export const PUTLink = async (data: PostLinkDataZod): Promise<ErrorResult | JsonResult<LinkType>> => {
   const session = await auth()
   if (!session) return sendErrorAction(401, errors.invalid_session)
 
@@ -62,7 +63,7 @@ export const PostLink = async (data: PostLinkDataZod): Promise<ErrorResult | Jso
   }
 }
 
-export const GetLink = async (data: Partial<LinkType>): Promise<ErrorResult | JsonResult<LinkType>> => {
+export const POSTLink = async (data: Partial<LinkType>): Promise<ErrorResult | JsonResult<LinkType>> => {
   const session = await auth()
   if (!session) return sendErrorAction(401, errors.invalid_session)
 
@@ -71,6 +72,36 @@ export const GetLink = async (data: Partial<LinkType>): Promise<ErrorResult | Js
     if (!existingLink) return sendErrorAction(400, errors.link_no_exist)
 
     return sendJsonAction(modelJson(existingLink))
+  } catch (e: any) {
+    if ("message" in e) {
+      return sendErrorAction(400, e.message)
+    }
+
+    return sendErrorAction(400, JSON.stringify(e))
+  }
+}
+
+export const PATCHLink = async (data: {
+  shortCode: string,
+  data: Partial<LinkType>
+}): Promise<ErrorResult | JsonResult<LinkType>> => {
+  const session = await auth()
+  if (!session) return sendErrorAction(401, errors.invalid_session)
+
+  const allowed = await rateLimiter.consume(`${session.user.accountId}-link-patch`);
+  if (!allowed) return sendErrorAction(429, errors.rate_limit);
+
+  try {
+    const patchedLink = await Link.findOneAndUpdate({
+      shortCode: data.shortCode,
+      userId: session.user.accountId
+    }, {
+      ...data.data,
+      userId: session.user.accountId
+    })
+    if (!patchedLink) return sendErrorAction(400, errors.invalid_patch)
+
+    return sendJsonAction(modelJson(patchedLink))
   } catch (e: any) {
     if ("message" in e) {
       return sendErrorAction(400, e.message)
