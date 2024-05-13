@@ -6,7 +6,6 @@ import { Providers } from "@/components/providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXTAUTH_URL!),
   title: "EzEz Link",
   description: "A super ez link shortener! Built in Nextjs",
 };

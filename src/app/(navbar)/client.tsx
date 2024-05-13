@@ -129,6 +129,7 @@ export const CreateShortLink = ({ session }: { session: CustomSession }) => {
                 type="text"
                 id="custom-slug"
                 disabled={loading}
+                value={inputData.shortCode}
                 placeholder="my-custom-slug"
                 onChange={handleShortCodeInputChange}
               />
